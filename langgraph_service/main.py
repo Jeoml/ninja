@@ -66,9 +66,11 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Root endpoint."""
+    backend_url = os.getenv("BACKEND_SERVICE_URL", "https://ninja-production-6ed6.up.railway.app")
     return {
         "message": "LangGraph Service - AI-Powered Adaptive Quiz Agent",
         "version": "1.0.0",
+        "backend_service_url": backend_url,
         "services": {
             "langgraph_agent": {
                 "start_quiz": "POST /ai-agents/langgraph/start-quiz",

@@ -8,7 +8,7 @@ import os
 from typing import Dict, List, Optional
 
 # Backend service URL (configurable via environment variable)
-BACKEND_SERVICE_URL = os.getenv("BACKEND_SERVICE_URL", "http://localhost:8000")
+BACKEND_SERVICE_URL = os.getenv("BACKEND_SERVICE_URL", "https://ninja-production-6ed6.up.railway.app")
 
 def get_all_topics() -> List[str]:
     """Get all available topics from the backend service."""
