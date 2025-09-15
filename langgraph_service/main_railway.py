@@ -96,37 +96,6 @@ async def health_check():
         "port": os.getenv("PORT", "8001")
     }
 
-@app.get("/ai-agents/langgraph/info")
-async def get_agent_info():
-    """Get information about the LangGraph quiz agent."""
-    return {
-        "success": True,
-        "message": "LangGraph Quiz Agent Information",
-        "data": {
-            "agent_type": "LangGraph Adaptive Quiz Agent",
-            "model": "Qwen 3-32B (via Groq)",
-            "nodes": [
-                "node_1_initial_shortcuts",
-                "node_2_check_response", 
-                "node_3a_correct_followup",
-                "node_3b_topic_catalog",
-                "node_4_select_new_topic",
-                "node_5_ask_question",
-                "node_6_generate_questions_and_summary"
-            ],
-            "features": [
-                "Adaptive question difficulty",
-                "Topic-based progression",
-                "Performance tracking",
-                "AI-powered feedback",
-                "Database integration",
-                "AI-generated question creation",
-                "Comprehensive user profiling",
-                "Self-improving questionnaire"
-            ],
-            "max_questions": 25
-        }
-    }
 
 
 # Simple test endpoint for Railway

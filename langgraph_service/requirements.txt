@@ -5,9 +5,11 @@ uvicorn==0.24.0
 psycopg2-binary==2.9.9
 pydantic==2.5.0
 
-# LangGraph and AI dependencies
-langgraph
-groq
+# LangGraph and AI dependencies (pinned versions to avoid dependency hell)
+langgraph==0.6.7
+groq==0.30.0
+langchain-core==0.3.76
+langgraph-checkpoint==2.1.1
 
 # Testing dependencies
 pytest==7.4.3
