@@ -4,16 +4,19 @@ Groq API client for Qwen 3-32B model integration.
 from groq import Groq
 from typing import Dict, Any, Optional
 import json
+import os
 
 # Groq API configuration
-GROQ_API_KEY = "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"
-MODEL_NAME = "qwen/qwen3-32b"  # Using available model, Qwen might not be available
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # Get from environment variable
+MODEL_NAME = "llama3-70b-8192"  # Using available model
 
 class GroqClient:
     """Client for interacting with Groq API."""
     
     def __init__(self):
-        self.client = Groq(api_key=GROQ_API_KEY)
+        if not GROQ_API_KEY:
+            print("⚠️  Warning: GROQ_API_KEY environment variable not set")
+        self.client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
     
     def generate_response(
         self, 
@@ -23,6 +26,9 @@ class GroqClient:
         temperature: float = 0.7
     ) -> Optional[str]:
         """Generate a response using the Groq API."""
+        if not self.client:
+            return "AI service temporarily unavailable - please check GROQ_API_KEY configuration."
+        
         try:
             chat_completion = self.client.chat.completions.create(
                 messages=[

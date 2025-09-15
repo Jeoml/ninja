@@ -16,10 +16,12 @@ Set these in Railway:
 
 ```
 BACKEND_SERVICE_URL=https://ninja-production-6ed6.up.railway.app
-GROQ_API_KEY=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
+GROQ_API_KEY=<your_groq_api_key_here>
 DATABASE_URL=postgresql://neondb_owner:npg_gbCZGkeq8f7W@ep-small-forest-ad89jah2-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 PORT=8001
 ```
+
+**Note**: The actual Groq API key is stored in `groq_api_key.txt` for reference.
 
 ## API Endpoints
 
