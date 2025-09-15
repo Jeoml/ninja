@@ -1,0 +1,755 @@
+================================================================================
+AUTHENTICATION API DOCUMENTATION
+================================================================================
+
+BASE URL: https://ninja-production-6ed6.up.railway.app
+
+OVERVIEW:
+The Authentication API provides secure email-based OTP (One-Time Password) 
+authentication with JWT token management. Users receive OTP codes via email
+and get JWT tokens for accessing protected resources.
+
+================================================================================
+ENDPOINT 1: SEND OTP
+================================================================================
+
+URL: POST /auth/send-otp
+DESCRIPTION: Send OTP code to user's email address
+CONTENT-TYPE: application/json
+
+REQUEST BODY:
+{
+  "email": "string"  // Valid email address
+}
+
+EXAMPLE REQUEST:
+POST https://ninja-production-6ed6.up.railway.app/auth/send-otp
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+
+RESPONSE FORMAT:
+{
+  "success": boolean,
+  "message": "string",
+  "data": {
+    "email": "string",
+    "expires_in_minutes": integer
+  } | null
+}
+
+EXAMPLE SUCCESSFUL RESPONSE:
+{
+  "success": true,
+  "message": "OTP sent successfully to user@example.com",
+  "data": {
+    "email": "user@example.com",
+    "expires_in_minutes": 5
+  }
+}
+
+EXAMPLE ERROR RESPONSE:
+{
+  "success": false,
+  "message": "Invalid email format",
+  "data": null
+}
+
+ERROR CODES:
+- 400: Invalid email format
+- 500: Email service unavailable or SMTP configuration error
+
+================================================================================
+ENDPOINT 2: VERIFY OTP
+================================================================================
+
+URL: POST /auth/verify-otp
+DESCRIPTION: Verify OTP code and receive JWT access token
+CONTENT-TYPE: application/json
+
+REQUEST BODY:
+{
+  "email": "string",     // Email address where OTP was sent
+  "otp_code": "string"   // 6-digit OTP code from email
+}
+
+EXAMPLE REQUEST:
+POST https://ninja-production-6ed6.up.railway.app/auth/verify-otp
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "otp_code": "123456"
+}
+
+RESPONSE FORMAT:
+{
+  "access_token": "string",
+  "token_type": "string",
+  "expires_in": integer,
+  "user_info": {
+    "id": integer,
+    "email": "string",
+    "is_verified": boolean,
+    "created_at": "ISO_datetime",
+    "last_login": "ISO_datetime"
+  }
+}
+
+EXAMPLE SUCCESSFUL RESPONSE:
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 1800,
+  "user_info": {
+    "id": 123,
+    "email": "user@example.com",
+    "is_verified": true,
+    "created_at": "2025-09-15T23:00:00",
+    "last_login": "2025-09-15T23:05:00"
+  }
+}
+
+EXAMPLE ERROR RESPONSE:
+{
+  "detail": "Invalid or expired OTP code"
+}
+
+ERROR CODES:
+- 400: Invalid OTP code, expired OTP, or email not found
+- 500: Database error or JWT generation failure
+
+================================================================================
+ENDPOINT 3: GET CURRENT USER
+================================================================================
+
+URL: GET /auth/me
+DESCRIPTION: Get current authenticated user information
+AUTHENTICATION: Bearer JWT token required
+CONTENT-TYPE: application/json
+
+REQUEST HEADERS:
+Authorization: Bearer <jwt_token>
+
+EXAMPLE REQUEST:
+GET https://ninja-production-6ed6.up.railway.app/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+RESPONSE FORMAT:
+{
+  "user": {
+    "id": integer,
+    "email": "string",
+    "is_verified": boolean,
+    "is_active": boolean,
+    "created_at": "ISO_datetime",
+    "last_login": "ISO_datetime"
+  }
+}
+
+EXAMPLE SUCCESSFUL RESPONSE:
+{
+  "user": {
+    "id": 123,
+    "email": "user@example.com",
+    "is_verified": true,
+    "is_active": true,
+    "created_at": "2025-09-15T23:00:00",
+    "last_login": "2025-09-15T23:05:00"
+  }
+}
+
+ERROR CODES:
+- 401: Invalid or expired JWT token
+- 500: Database error
+
+================================================================================
+ENDPOINT 4: REFRESH TOKEN
+================================================================================
+
+URL: POST /auth/refresh-token
+DESCRIPTION: Generate new JWT token using existing valid token
+AUTHENTICATION: Bearer JWT token required
+CONTENT-TYPE: application/json
+
+REQUEST HEADERS:
+Authorization: Bearer <jwt_token>
+
+EXAMPLE REQUEST:
+POST https://ninja-production-6ed6.up.railway.app/auth/refresh-token
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+RESPONSE FORMAT:
+{
+  "access_token": "string",
+  "token_type": "string", 
+  "expires_in": integer,
+  "user_info": {
+    "id": integer,
+    "email": "string",
+    "is_verified": boolean
+  }
+}
+
+EXAMPLE SUCCESSFUL RESPONSE:
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 1800,
+  "user_info": {
+    "id": 123,
+    "email": "user@example.com",
+    "is_verified": true
+  }
+}
+
+ERROR CODES:
+- 401: Invalid or expired JWT token
+- 500: Token generation failure
+
+================================================================================
+AUTHENTICATION FLOW
+================================================================================
+
+COMPLETE AUTHENTICATION WORKFLOW:
+
+1. USER REGISTRATION/LOGIN:
+   - User enters email address
+   - Frontend calls POST /auth/send-otp
+   - User receives 6-digit OTP via email
+
+2. OTP VERIFICATION:
+   - User enters OTP code
+   - Frontend calls POST /auth/verify-otp
+   - Backend returns JWT access token
+
+3. AUTHENTICATED REQUESTS:
+   - Frontend stores JWT token
+   - Include token in Authorization header for protected endpoints
+   - Token expires in 30 minutes (configurable)
+
+4. TOKEN REFRESH:
+   - Before token expires, call POST /auth/refresh-token
+   - Get new token with extended expiry
+
+================================================================================
+FRONTEND INTEGRATION EXAMPLES
+================================================================================
+
+COMPLETE AUTHENTICATION FLOW:
+
+```javascript
+class AuthService {
+  constructor() {
+    this.baseURL = 'https://ninja-production-6ed6.up.railway.app';
+    this.token = localStorage.getItem('auth_token');
+  }
+
+  // Step 1: Send OTP
+  async sendOTP(email) {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  // Step 2: Verify OTP and get token
+  async verifyOTP(email, otpCode) {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email,
+          otp_code: otpCode 
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Store token for future requests
+        this.token = result.access_token;
+        localStorage.setItem('auth_token', this.token);
+        return { success: true, user: result.user_info };
+      } else {
+        const error = await response.json();
+        return { success: false, message: error.detail };
+      }
+    } catch (error) {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  // Step 3: Get current user info
+  async getCurrentUser() {
+    if (!this.token) return { success: false, message: 'No token' };
+
+    try {
+      const response = await fetch(`${this.baseURL}/auth/me`, {
+        headers: { 
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return { success: true, user: result.user };
+      } else {
+        return { success: false, message: 'Token invalid' };
+      }
+    } catch (error) {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  // Step 4: Refresh token
+  async refreshToken() {
+    if (!this.token) return { success: false, message: 'No token' };
+
+    try {
+      const response = await fetch(`${this.baseURL}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        this.token = result.access_token;
+        localStorage.setItem('auth_token', this.token);
+        return { success: true, user: result.user_info };
+      } else {
+        return { success: false, message: 'Refresh failed' };
+      }
+    } catch (error) {
+      return { success: false, message: 'Network error' };
+    }
+  }
+
+  // Utility: Check if user is authenticated
+  isAuthenticated() {
+    return !!this.token;
+  }
+
+  // Utility: Logout
+  logout() {
+    this.token = null;
+    localStorage.removeItem('auth_token');
+  }
+}
+
+// Usage Example
+const auth = new AuthService();
+
+// Login flow
+async function loginUser(email, otpCode) {
+  // First send OTP
+  const otpResult = await auth.sendOTP(email);
+  if (!otpResult.success) {
+    console.error('Failed to send OTP:', otpResult.message);
+    return false;
+  }
+
+  // Then verify OTP
+  const verifyResult = await auth.verifyOTP(email, otpCode);
+  if (verifyResult.success) {
+    console.log('✅ Login successful!', verifyResult.user);
+    return true;
+  } else {
+    console.error('❌ Login failed:', verifyResult.message);
+    return false;
+  }
+}
+```
+
+REACT HOOKS EXAMPLE:
+```jsx
+import React, { useState, useEffect } from 'react';
+
+function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem('auth_token'));
+
+  const sendOTP = async (email) => {
+    const response = await fetch('https://ninja-production-6ed6.up.railway.app/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    return response.json();
+  };
+
+  const verifyOTP = async (email, otpCode) => {
+    const response = await fetch('https://ninja-production-6ed6.up.railway.app/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp_code: otpCode })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      setToken(result.access_token);
+      localStorage.setItem('auth_token', result.access_token);
+      setUser(result.user_info);
+      return { success: true };
+    } else {
+      const error = await response.json();
+      return { success: false, message: error.detail };
+    }
+  };
+
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('auth_token');
+  };
+
+  return { user, token, sendOTP, verifyOTP, logout, loading };
+}
+
+// Usage in component
+function LoginComponent() {
+  const { user, sendOTP, verifyOTP, logout } = useAuth();
+  const [email, setEmail] = useState('');
+  const [otp, setOTP] = useState('');
+  const [step, setStep] = useState('email'); // 'email' or 'otp'
+
+  const handleSendOTP = async () => {
+    const result = await sendOTP(email);
+    if (result.success) {
+      setStep('otp');
+    } else {
+      alert(result.message);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    const result = await verifyOTP(email, otp);
+    if (result.success) {
+      // User is now logged in
+      console.log('Logged in successfully!');
+    } else {
+      alert(result.message);
+    }
+  };
+
+  if (user) {
+    return (
+      <div>
+        <p>Welcome, {user.email}!</p>
+        <button onClick={logout}>Logout</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {step === 'email' ? (
+        <div>
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button onClick={handleSendOTP}>Send OTP</button>
+        </div>
+      ) : (
+        <div>
+          <input
+            type="text"
+            placeholder="Enter 6-digit OTP"
+            value={otp}
+            onChange={(e) => setOTP(e.target.value)}
+          />
+          <button onClick={handleVerifyOTP}>Verify OTP</button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+================================================================================
+JWT TOKEN USAGE
+================================================================================
+
+TOKEN FORMAT:
+Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiZXhwIjoxNjk0NzM2MDAwfQ.signature
+
+TOKEN PAYLOAD EXAMPLE:
+{
+  "sub": "user@example.com",  // Subject (email)
+  "exp": 1694736000,          // Expiration timestamp
+  "iat": 1694734200,          // Issued at timestamp
+  "email": "user@example.com",
+  "user_id": 123
+}
+
+USING TOKENS IN REQUESTS:
+```javascript
+// Include token in all authenticated requests
+const response = await fetch('https://ninja-production-6ed6.up.railway.app/auth/me', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+});
+```
+
+TOKEN EXPIRATION:
+- Default: 30 minutes
+- Configurable via JWT_ACCESS_TOKEN_EXPIRE_MINUTES environment variable
+- Use refresh-token endpoint to get new token before expiration
+
+================================================================================
+OTP SYSTEM DETAILS
+================================================================================
+
+OTP CHARACTERISTICS:
+- Length: 6 digits (configurable)
+- Expiration: 5 minutes (configurable)
+- Delivery: Email via SMTP
+- Format: Numeric only (e.g., 123456)
+
+EMAIL TEMPLATE:
+Subject: Your OTP Code for Quiz Auth System
+Body: 
+"Your OTP code is: 123456
+This code will expire in 5 minutes.
+If you didn't request this code, please ignore this email."
+
+OTP VALIDATION RULES:
+- Must be exactly 6 digits
+- Case-insensitive
+- Single use (expires after successful verification)
+- Time-based expiration (5 minutes default)
+
+================================================================================
+SECURITY FEATURES
+================================================================================
+
+🔐 SECURITY MEASURES:
+
+1. EMAIL VERIFICATION:
+   - OTP sent only to verified email addresses
+   - Prevents unauthorized access attempts
+
+2. TIME-LIMITED CODES:
+   - OTP expires in 5 minutes
+   - Prevents replay attacks
+
+3. JWT SECURITY:
+   - Signed with secret key
+   - Includes expiration timestamps
+   - Stateless authentication
+
+4. DATABASE PROTECTION:
+   - Passwords not stored (OTP-only system)
+   - User sessions tracked
+   - Login timestamps recorded
+
+5. RATE LIMITING:
+   - OTP requests limited per email
+   - Prevents spam/abuse
+
+================================================================================
+ERROR HANDLING
+================================================================================
+
+COMMON ERROR SCENARIOS:
+
+1. INVALID EMAIL FORMAT:
+   Response: {"success": false, "message": "Invalid email format"}
+   Action: Validate email on frontend before sending
+
+2. EMAIL SERVICE DOWN:
+   Response: {"success": false, "message": "Email service unavailable"}
+   Action: Show user "Try again later" message
+
+3. INVALID OTP:
+   Response: {"detail": "Invalid or expired OTP code"}
+   Action: Allow user to request new OTP
+
+4. EXPIRED TOKEN:
+   Response: {"detail": "Token has expired"}
+   Action: Redirect to login or use refresh-token
+
+5. NETWORK ERRORS:
+   Response: Network timeout/connection error
+   Action: Retry with exponential backoff
+
+ERROR HANDLING EXAMPLE:
+```javascript
+async function handleAuthRequest(authFunction) {
+  try {
+    const result = await authFunction();
+    return result;
+  } catch (error) {
+    if (error.message.includes('401')) {
+      // Token expired - redirect to login
+      redirectToLogin();
+    } else if (error.message.includes('500')) {
+      // Server error - show retry option
+      showRetryMessage();
+    } else {
+      // Network error - show generic error
+      showNetworkError();
+    }
+    return { success: false, message: error.message };
+  }
+}
+```
+
+================================================================================
+INTEGRATION PATTERNS
+================================================================================
+
+TYPICAL FRONTEND FLOW:
+
+1. LOGIN SCREEN:
+   - Email input field
+   - "Send OTP" button
+   - Calls POST /auth/send-otp
+
+2. OTP VERIFICATION SCREEN:
+   - OTP input field (6 digits)
+   - "Verify" button
+   - Calls POST /auth/verify-otp
+   - Stores JWT token on success
+
+3. AUTHENTICATED APP:
+   - Include JWT token in all API calls
+   - Check token expiry
+   - Auto-refresh token when needed
+
+4. LOGOUT:
+   - Clear stored token
+   - Redirect to login screen
+
+AUTHENTICATION STATE MANAGEMENT:
+```javascript
+// Simple auth state
+const authState = {
+  isAuthenticated: false,
+  user: null,
+  token: null,
+  loading: false
+};
+
+// Auth actions
+const authActions = {
+  login: async (email, otp) => { /* implement */ },
+  logout: () => { /* clear state */ },
+  refreshToken: async () => { /* refresh */ },
+  checkAuth: async () => { /* validate current token */ }
+};
+```
+
+================================================================================
+TESTING EXAMPLES
+================================================================================
+
+CURL EXAMPLES:
+
+# Send OTP
+curl -X POST https://ninja-production-6ed6.up.railway.app/auth/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com"}'
+
+# Verify OTP  
+curl -X POST https://ninja-production-6ed6.up.railway.app/auth/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "otp_code": "123456"}'
+
+# Get current user
+curl -X GET https://ninja-production-6ed6.up.railway.app/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Refresh token
+curl -X POST https://ninja-production-6ed6.up.railway.app/auth/refresh-token \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+POSTMAN COLLECTION:
+1. Create collection "Quiz Auth API"
+2. Add requests for each endpoint
+3. Set environment variable for base URL
+4. Use token from verify-otp in subsequent requests
+
+================================================================================
+ENVIRONMENT CONFIGURATION
+================================================================================
+
+REQUIRED ENVIRONMENT VARIABLES:
+
+# Database
+DATABASE_URL=postgresql://...
+
+# JWT Configuration  
+JWT_SECRET_KEY=your-super-secret-key
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Email Configuration
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=your-email@gmail.com
+
+# OTP Configuration
+OTP_EXPIRE_MINUTES=5
+OTP_LENGTH=6
+
+# Application
+APP_NAME=Quiz Auth System
+DEBUG=false
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+1. "Email service unavailable"
+   - Check SMTP credentials in environment variables
+   - Verify Gmail app password (not regular password)
+   - Test email service connectivity
+
+2. "Invalid or expired OTP code"
+   - Check OTP expiration time (5 minutes default)
+   - Verify OTP format (6 digits)
+   - Ensure email matches exactly
+
+3. "Token has expired"
+   - Check JWT expiration time (30 minutes default)
+   - Implement token refresh logic
+   - Handle expiration gracefully in frontend
+
+4. "Database connection failed"
+   - Verify DATABASE_URL environment variable
+   - Check PostgreSQL database connectivity
+   - Ensure database tables are created
+
+5. CORS errors
+   - Check allowed origins in CORS configuration
+   - Verify frontend URL is whitelisted
+   - Include proper headers in requests
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
