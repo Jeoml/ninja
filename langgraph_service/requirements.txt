@@ -3,7 +3,7 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 psycopg2-binary==2.9.9
-pydantic==2.5.0
+pydantic>=2.7.4,<3.0.0
 
 # LangGraph and AI dependencies (pinned versions to avoid dependency hell)
 langgraph==0.6.7
