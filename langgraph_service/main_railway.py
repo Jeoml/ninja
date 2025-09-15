@@ -65,18 +65,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add CORS middleware with explicit configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",  # Allow all origins for development
+        "*",  # Allow all origins
         "https://ninja-frontend-production.up.railway.app",
         "http://localhost:3000",
-        "http://localhost:3001"
+        "http://localhost:3001",
+        "https://ninja-production-8034.up.railway.app"  # Self-reference
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=[
+        "*",
+        "Content-Type",
+        "Authorization", 
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=["*"]
 )
 
 @app.get("/")
@@ -89,6 +100,19 @@ async def root():
         "status": "running",
         "backend_service_url": backend_url,
         "port": os.getenv("PORT", "8001")
+    }
+
+@app.get("/cors-test")
+async def cors_test():
+    """Test CORS configuration."""
+    return {
+        "message": "CORS test successful",
+        "service": "langgraph_service",
+        "allowed_origins": [
+            "https://ninja-frontend-production.up.railway.app",
+            "http://localhost:3000",
+            "http://localhost:3001"
+        ]
     }
 
 @app.get("/health")
