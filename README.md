@@ -1,6 +1,6 @@
-# Quiz Auth System
+# Ninja Assignment - Railway Deployment Ready
 
-A comprehensive quiz platform with email-based authentication and AI-powered adaptive learning.
+A comprehensive quiz platform split into two independent services for Railway deployment.
 
 ## 🚀 Features
 
