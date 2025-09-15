@@ -31,16 +31,26 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"🚀 Starting Backend Service...")
     
-    # Create database tables
-    create_auth_tables()
+    try:
+        # Create database tables (with error handling for Railway)
+        create_auth_tables()
+        print("✅ Authentication tables ready")
+        
+        # Create agent helper tables
+        from agent_helper.response_service import ResponseService
+        ResponseService.create_responses_table()
+        print("✅ Response tables ready")
+        
+    except Exception as e:
+        print(f"⚠️  Database setup warning: {str(e)}")
+        print("Service will continue - tables may be created on first use")
     
-    # Create agent helper tables
-    from agent_helper.response_service import ResponseService
-    ResponseService.create_responses_table()
-    
-    # Test email service connection
-    if not email_service.test_connection():
-        print("⚠️  Warning: Email service connection failed. Please check SMTP configuration.")
+    try:
+        # Test email service connection (non-blocking)
+        if not email_service.test_connection():
+            print("⚠️  Email service connection failed - will retry on first use")
+    except Exception as e:
+        print(f"⚠️  Email service warning: {str(e)}")
     
     print("✅ Backend Service startup complete!")
     
@@ -132,11 +142,23 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with diagnostics."""
+    try:
+        # Test database connection
+        from auth.database import get_db
+        with get_db() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
     return {
         "status": "healthy",
-        "service": "backend_service",
-        "timestamp": "2024-01-01T00:00:00Z"
+        "service": "backend_service", 
+        "database": db_status,
+        "port": os.getenv("PORT", "8000"),
+        "timestamp": "2025-09-15T23:00:00Z"
     }
 
 @app.post("/auth/send-otp", response_model=AuthResponse)
@@ -242,10 +264,12 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
         )
 
 if __name__ == "__main__":
+    import os
+    port = int(os.getenv("PORT", 8000))  # Use Railway's PORT env var, fallback to 8000
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=DEBUG,
-        log_level="info" if not DEBUG else "debug"
+        port=port,
+        reload=False,  # Disable reload for production
+        log_level="info"
     )

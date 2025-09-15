@@ -2,173 +2,81 @@
 
 A comprehensive quiz platform split into two independent services for Railway deployment.
 
-## 🚀 Features
+## 🏗️ Architecture
 
-### 🔐 Authentication System
-- **Email OTP Verification**: Secure login with 6-digit codes sent via email
-- **JWT Tokens**: Stateless authentication for API access
-- **User Management**: PostgreSQL-backed user profiles and sessions
+This project is split into two microservices:
 
-### 🤖 AI Agents - Round 1 Quiz
-- **Adaptive Questions**: Intelligently selects questions from different topics
-- **Performance Tracking**: Real-time catalog of user strengths and weaknesses
-- **Smart Logic**: Topics with mixed results are marked as "solved"
-- **Diverse Coverage**: 131+ questions across 9+ Excel topics
+1. **Backend Service** - Authentication, Questions, Responses
+2. **LangGraph Service** - AI-Powered Adaptive Assessments
 
 ## 📁 Project Structure
 
 ```
 ninja_assignment/
-├── main.py                    # FastAPI application entry point
-├── requirements.txt           # All dependencies
-├── data.csv                   # Quiz questions database
+├── backend_service/           # 🏗️ Backend Service (Railway #1)
+│   ├── main.py               # Backend FastAPI app (Port 8000)
+│   ├── requirements.txt      # Backend dependencies
+│   ├── railway.json         # Railway deployment config
+│   ├── README.md            # Backend service guide
+│   ├── auth/                # Authentication system
+│   ├── agent_helper/        # Question/Response APIs
+│   └── ai_agents/brute/     # Round 1 & 2 quiz systems
 │
-├── auth/                      # Authentication module
-│   ├── config.py             # Configuration settings
-│   ├── database.py           # Database utilities
-│   ├── email_service.py      # OTP email sending
-│   ├── jwt_service.py        # JWT token management
-│   ├── otp_service.py        # OTP generation/verification
-│   └── models.py             # Pydantic models
+├── langgraph_service/        # 🤖 LangGraph Service (Railway #2)
+│   ├── main.py              # LangGraph FastAPI app (Port 8001)
+│   ├── requirements.txt     # AI dependencies (LangGraph, Groq)
+│   ├── railway.json        # Railway deployment config
+│   ├── README.md           # LangGraph service guide
+│   └── langgraph_agent/    # 6-node AI agent system
 │
-├── ai_agents/                 # AI Agents package
-│   └── round1/               # Round 1 quiz system
-│       ├── api.py            # FastAPI routes
-│       ├── quiz_service.py   # Quiz orchestration
-│       ├── catalog_service.py # Performance tracking
-│       ├── database_service.py # Question fetching
-│       └── models.py         # API models
-│
-├── scripts/                   # Utility scripts
-│   ├── insert_quiz_data.py   # Database setup script
-│   ├── run_tests.py          # Test runner
-│   └── simulate_round1.py    # Full quiz simulation
-│
-├── tests/                     # Test suite
-│   ├── simple_test.py        # Basic functionality tests
-│   ├── test_imports.py       # Import validation
-│   ├── test_database_service.py # Database tests
-│   ├── test_quiz_service.py  # Quiz logic tests
-│   └── test_api_endpoints.py # API endpoint tests
-│
-└── docs/                      # Documentation
-    ├── AUTH_README.md         # Authentication system docs
-    ├── ROUND1_README.md       # Round 1 quiz docs
-    └── ARCHITECTURE_REVIEW.md # Architecture analysis
+├── data.csv                  # 📊 Quiz questions dataset
+├── RAILWAY_DEPLOYMENT_GUIDE.md  # 🚀 Complete deployment guide
+└── LANGGRAPH_API_DOCUMENTATION.txt  # 📋 API documentation
 ```
 
-## 🛠️ Setup
+## 🚀 Quick Start for Railway
 
-### 1. Install Dependencies
-```bash
-pip install -r requirements.txt
+### Deploy Backend Service (Service #1):
+1. Create new Railway project
+2. Connect the `backend_service/` folder
+3. Set environment variables (see RAILWAY_DEPLOYMENT_GUIDE.md)
+4. Deploy
+
+### Deploy LangGraph Service (Service #2):
+1. Create new Railway project  
+2. Connect the `langgraph_service/` folder
+3. Set BACKEND_SERVICE_URL to your Backend Service Railway URL
+4. Set GROQ_API_KEY
+5. Deploy
+
+## 🔗 Service Communication
+
+```
+Frontend → LangGraph Service → Backend Service → Database
 ```
 
-### 2. Setup Database
-```bash
-python scripts/insert_quiz_data.py
-```
+- Frontend calls LangGraph Service for AI assessments
+- LangGraph Service calls Backend Service for questions/responses
+- Backend Service handles all database operations
 
-### 3. Configure Email (Optional)
-Update `auth/config.py` with your Gmail SMTP credentials for OTP functionality.
+## 📋 Documentation
 
-### 4. Run Application
-```bash
-python main.py
-```
+- **Deployment Guide**: `RAILWAY_DEPLOYMENT_GUIDE.md`
+- **API Documentation**: `LANGGRAPH_API_DOCUMENTATION.txt`
+- **Backend Service**: `backend_service/README.md`
+- **LangGraph Service**: `langgraph_service/README.md`
 
-Server will start at `http://localhost:8000`
+## 🎯 Key Features
 
-## 📚 API Documentation
+- ✅ **6-Node AI Workflow**: Adaptive question selection
+- ✅ **AI Question Generation**: Self-improving questionnaire
+- ✅ **User Profiling**: Comprehensive psychological analysis
+- ✅ **Secure Assessment**: No answer exposure during interviews
+- ✅ **Independent Scaling**: Deploy and scale services separately
+- ✅ **Database Integration**: PostgreSQL with JSON response storage
 
-Once running, visit:
-- **Interactive Docs**: `http://localhost:8000/docs`
-- **API Schema**: `http://localhost:8000/openapi.json`
+## 🔧 Local Testing
 
-### Key Endpoints
+See `RAILWAY_DEPLOYMENT_GUIDE.md` for complete local testing instructions.
 
-#### Authentication
-- `POST /auth/send-otp` - Send OTP to email
-- `POST /auth/verify-otp` - Verify OTP and get JWT token
-- `GET /auth/me` - Get current user info (requires JWT)
-
-#### Round 1 Quiz (No Auth Required)
-- `GET /ai-agents/round1/chat/intro` - Get started
-- `POST /ai-agents/round1/start` - Start quiz session
-- `GET /ai-agents/round1/question` - Get next question
-- `POST /ai-agents/round1/answer` - Submit answer (A/B/C/D)
-- `GET /ai-agents/round1/performance` - View performance catalog
-
-## 🧪 Testing
-
-### Run All Tests
-```bash
-python scripts/run_tests.py
-```
-
-### Run Simple Tests
-```bash
-python tests/simple_test.py
-```
-
-### Simulate Full Quiz
-```bash
-python scripts/simulate_round1.py
-```
-
-## 🎯 Round 1 Quiz Flow
-
-1. **Start Session**: Configure number of questions (default: 15)
-2. **Answer Questions**: Multiple choice (A/B/C/D) from diverse topics
-3. **Real-time Feedback**: Immediate correct/incorrect responses
-4. **Performance Tracking**: Live catalog of topic mastery
-5. **Final Results**: Comprehensive strengths/weaknesses analysis
-
-### Topic Catalog Logic
-- ✅ **Solved**: Only correct answers OR mixed correct/incorrect
-- ❌ **Unsolved**: Only incorrect answers
-- 📊 **Smart Selection**: Prioritizes unexplored topics
-
-## 🔧 Configuration
-
-### Database
-- PostgreSQL connection via `auth/config.py`
-- Shared connection utilities across modules
-- Automatic table creation
-
-### Email Service
-- Gmail SMTP support
-- HTML email templates
-- Configurable OTP settings
-
-### JWT Tokens
-- HS256 algorithm
-- Configurable expiration
-- Secure secret key management
-
-## 📖 Documentation
-
-- **[Authentication System](docs/AUTH_README.md)** - Detailed auth flow
-- **[Round 1 Quiz](docs/ROUND1_README.md)** - Quiz system architecture  
-- **[Architecture Review](docs/ARCHITECTURE_REVIEW.md)** - Technical analysis
-
-## 🚀 Future Enhancements
-
-- Additional quiz rounds with difficulty progression
-- Persistent user sessions and progress tracking
-- Advanced analytics and reporting
-- Multiplayer quiz competitions
-- Mobile app integration
-
-## 🤝 Development
-
-### Project Principles
-- **Single Source of Truth**: Centralized configuration
-- **Code Reuse**: Shared utilities across modules
-- **Clean Architecture**: Separated concerns and dependencies
-- **Comprehensive Testing**: Multiple test layers
-- **Clear Documentation**: Self-documenting code and APIs
-
----
-
-**Built with FastAPI, PostgreSQL, and modern Python practices** 🐍
+Ready for Railway deployment! 🚀
