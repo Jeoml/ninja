@@ -8,7 +8,7 @@ import os
 
 # Groq API configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # Get from environment variable
-MODEL_NAME = "llama3-70b-8192"  # Using available model
+MODEL_NAME = "llama-3.1-70b-versatile"  # Updated to current available model
 
 class GroqClient:
     """Client for interacting with Groq API."""

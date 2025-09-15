@@ -19,20 +19,25 @@ async def lifespan(app: FastAPI):
         backend_url = os.getenv("BACKEND_SERVICE_URL", "https://ninja-production-6ed6.up.railway.app")
         print(f"🔗 Backend service URL: {backend_url}")
         
-        # Test Groq API connection
+        # Test Groq API connection (non-blocking)
         try:
-            from langgraph_agent.groq_client import groq_client
-            test_response = groq_client.generate_response(
-                "You are a test assistant.", 
-                "Say 'OK' if you can hear me.", 
-                max_tokens=5
-            )
-            if test_response and "OK" in test_response:
-                print("✅ Groq API connection successful")
+            groq_api_key = os.getenv("GROQ_API_KEY", "")
+            if groq_api_key:
+                from langgraph_agent.groq_client import groq_client
+                test_response = groq_client.generate_response(
+                    "You are a test assistant.", 
+                    "Say 'OK' if you can hear me.", 
+                    max_tokens=5
+                )
+                if test_response and "OK" in test_response:
+                    print("✅ Groq API connection successful")
+                else:
+                    print("⚠️  Groq API response received but may need verification")
             else:
-                print("⚠️  Groq API connection warning")
+                print("⚠️  GROQ_API_KEY not set - AI features will be limited")
         except Exception as e:
             print(f"⚠️  Groq API warning: {str(e)}")
+            print("Service will continue - AI features may be limited")
         
         # Import and register LangGraph router after startup
         from langgraph_agent.api import router as langgraph_router
