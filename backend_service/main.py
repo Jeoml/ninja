@@ -1,5 +1,6 @@
 """
-FastAPI application for authentication system.
+Backend Service - Authentication and Agent Helper APIs
+Handles user authentication, quiz questions, and response recording.
 """
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -18,9 +19,6 @@ from auth.config import APP_NAME, DEBUG, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 from ai_agents.brute.round1.api import router as round1_router
 from ai_agents.brute.round2.api import router as round2_router
 
-# Import LangGraph Agent
-from ai_agents.langgraph_agent.api import router as langgraph_router
-
 # Import Agent Helper
 from agent_helper.tools import router as agent_helper_router
 
@@ -31,42 +29,43 @@ security = HTTPBearer()
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print(f"🚀 Starting {APP_NAME}...")
+    print(f"🚀 Starting Backend Service...")
     
     # Create database tables
     create_auth_tables()
+    
+    # Create agent helper tables
+    from agent_helper.response_service import ResponseService
+    ResponseService.create_responses_table()
     
     # Test email service connection
     if not email_service.test_connection():
         print("⚠️  Warning: Email service connection failed. Please check SMTP configuration.")
     
-    print("✅ Application startup complete!")
+    print("✅ Backend Service startup complete!")
     
     yield
     
     # Shutdown
-    print("👋 Shutting down application...")
+    print("👋 Shutting down Backend Service...")
 
 # Create FastAPI app
 app = FastAPI(
-    title=APP_NAME,
-    description="Quiz system with authentication and AI-powered adaptive quizzes",
+    title="Backend Service",
+    description="Authentication and Agent Helper APIs for Quiz System",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# Include AI Agents routers
+# Include routers
 app.include_router(round1_router)
 app.include_router(round2_router)
-app.include_router(langgraph_router)
-
-# Include Agent Helper router
 app.include_router(agent_helper_router)
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if DEBUG else ["http://localhost:3000"],
+    allow_origins=["*"] if DEBUG else ["http://localhost:3000", "https://your-langgraph-service.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,7 +91,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def root():
     """Root endpoint."""
     return {
-        "message": f"Welcome to {APP_NAME}",
+        "message": "Backend Service - Authentication and Agent Helper APIs",
         "version": "1.0.0",
         "services": {
             "authentication": {
@@ -115,12 +114,6 @@ async def root():
                     "performance": "GET /ai-agents/round2/performance",
                     "status": "GET /ai-agents/round2/status",
                     "topics": "GET /ai-agents/round2/topics"
-                },
-                "langgraph": {
-                    "start_quiz": "POST /ai-agents/langgraph/start-quiz",
-                    "user_summary": "GET /ai-agents/langgraph/user-summary/{session_id}",
-                    "health": "GET /ai-agents/langgraph/health",
-                    "info": "GET /ai-agents/langgraph/info"
                 }
             },
             "agent_helper": {
@@ -142,10 +135,9 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "service": APP_NAME
+        "service": "backend_service",
+        "timestamp": "2024-01-01T00:00:00Z"
     }
-
 
 @app.post("/auth/send-otp", response_model=AuthResponse)
 async def send_otp(request: EmailRequest):

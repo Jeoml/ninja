@@ -1,0 +1,451 @@
+================================================================================
+LANGGRAPH QUIZ AGENT API DOCUMENTATION
+================================================================================
+
+BASE URL: http://localhost:8000/ai-agents/langgraph
+
+OVERVIEW:
+The LangGraph Quiz Agent provides an AI-powered adaptive assessment system 
+that conducts interviews without exposing correct answers. It uses a 5-node 
+workflow to intelligently select questions based on user performance.
+
+================================================================================
+ENDPOINT 1: START QUIZ ASSESSMENT
+================================================================================
+
+URL: POST /ai-agents/langgraph/start-quiz
+DESCRIPTION: Starts a complete adaptive quiz assessment session
+CONTENT-TYPE: application/json
+
+REQUEST BODY:
+{
+  "user_id": "optional_string"  // Optional user identifier
+}
+
+EXAMPLE REQUEST:
+POST /ai-agents/langgraph/start-quiz
+Content-Type: application/json
+
+{
+  "user_id": "user_12345"
+}
+
+RESPONSE FORMAT:
+{
+  "success": boolean,
+  "message": "string",
+  "data": {
+    "session_id": "string",              // Unique session identifier
+    "questions_asked": integer,          // Total questions presented
+    "topics_covered": ["string"],        // List of topics assessed
+    "performance_summary": {             // Detailed performance analysis
+      "session_id": "string",
+      "total_responses": integer,
+      "correct_responses": integer,
+      "accuracy": float,                 // Accuracy as decimal (0.0 - 1.0)
+      "avg_response_time": float|null,   // Average response time in seconds
+      "topic_breakdown": [
+        {
+          "topic": "string",
+          "difficulty": "string",        // "easy", "medium", or "hard"
+          "total_questions": integer,
+          "correct_answers": integer,
+          "accuracy": float,
+          "avg_response_time": float|null
+        }
+      ]
+    },
+    "node_history": ["string"]           // Workflow nodes executed
+  }
+}
+
+EXAMPLE RESPONSE (SUCCESS):
+{
+  "success": true,
+  "message": "Quiz completed successfully!",
+  "data": {
+    "session_id": "session_abc123",
+    "questions_asked": 14,
+    "topics_covered": ["Shortcuts", "Data", "Charts", "General", "Formulas"],
+    "performance_summary": {
+      "session_id": "session_abc123",
+      "total_responses": 14,
+      "correct_responses": 8,
+      "accuracy": 0.5714285714285714,
+      "avg_response_time": null,
+      "topic_breakdown": [
+        {
+          "topic": "Shortcuts",
+          "difficulty": "easy",
+          "total_questions": 3,
+          "correct_answers": 2,
+          "accuracy": 0.6666666666666666,
+          "avg_response_time": null
+        },
+        {
+          "topic": "Charts",
+          "difficulty": "medium",
+          "total_questions": 2,
+          "correct_answers": 0,
+          "accuracy": 0.0,
+          "avg_response_time": null
+        }
+      ]
+    },
+    "node_history": [
+      "node_1_initial_shortcuts",
+      "node_2_check_response",
+      "node_3a_correct_followup",
+      "node_3b_topic_catalog",
+      "node_4_select_new_topic",
+      "node_5_ask_question"
+    ]
+  }
+}
+
+EXAMPLE RESPONSE (ERROR):
+{
+  "success": false,
+  "message": "Failed to run quiz: Database connection failed",
+  "data": null
+}
+
+ERROR CODES:
+- 500: Internal server error (database issues, AI service unavailable)
+- 422: Invalid request body format
+
+================================================================================
+ENDPOINT 2: HEALTH CHECK
+================================================================================
+
+URL: GET /ai-agents/langgraph/health
+DESCRIPTION: Check if the LangGraph agent service is running
+CONTENT-TYPE: application/json
+
+REQUEST: No body required
+
+EXAMPLE REQUEST:
+GET /ai-agents/langgraph/health
+
+RESPONSE FORMAT:
+{
+  "success": boolean,
+  "message": "string",
+  "service": "string"
+}
+
+EXAMPLE RESPONSE:
+{
+  "success": true,
+  "message": "LangGraph Quiz Agent is healthy",
+  "service": "langgraph_quiz_agent"
+}
+
+================================================================================
+ENDPOINT 3: GET USER SUMMARY
+================================================================================
+
+URL: GET /ai-agents/langgraph/user-summary/{session_id}
+DESCRIPTION: Get comprehensive user summary and analysis for a completed session
+CONTENT-TYPE: application/json
+
+REQUEST: No body required
+PATH PARAMETER: session_id (string) - The session ID from a completed assessment
+
+EXAMPLE REQUEST:
+GET /ai-agents/langgraph/user-summary/session_abc123
+
+RESPONSE FORMAT:
+{
+  "success": boolean,
+  "message": "string",
+  "data": {
+    "id": integer,
+    "session_id": "string",
+    "user_id": "string",
+    "assessment_date": "ISO_datetime",
+    "total_questions": integer,
+    "correct_answers": integer,
+    "accuracy": float,
+    "topics_covered": ["string"],
+    "strong_topics": ["string"],
+    "weak_topics": ["string"],
+    "cognitive_profile": "string",
+    "learning_style": "string",
+    "knowledge_gaps": "string",
+    "strengths_analysis": "string",
+    "improvement_recommendations": "string",
+    "skill_level_assessment": "string",
+    "executive_summary": "string",
+    "detailed_analysis": object,
+    "node_history": ["string"],
+    "assessment_duration": integer,
+    "created_at": "ISO_datetime"
+  }
+}
+
+EXAMPLE RESPONSE:
+{
+  "success": true,
+  "message": "User summary retrieved successfully",
+  "data": {
+    "id": 1,
+    "session_id": "session_abc123",
+    "user_id": "user_456",
+    "assessment_date": "2025-09-15T22:00:00",
+    "total_questions": 14,
+    "correct_answers": 8,
+    "accuracy": 0.5714,
+    "topics_covered": ["Shortcuts", "Charts", "Data"],
+    "strong_topics": ["Charts"],
+    "weak_topics": ["Data", "Formulas"],
+    "cognitive_profile": "Demonstrates systematic approach with strong visual-spatial reasoning...",
+    "learning_style": "Prefers structured, step-by-step learning with visual aids...",
+    "knowledge_gaps": "Requires foundational work in data analysis and formula application...",
+    "strengths_analysis": "Excellent chart interpretation skills and logical reasoning...",
+    "improvement_recommendations": "Focus on data manipulation exercises and formula practice...",
+    "skill_level_assessment": "Intermediate level with potential for advanced topics...",
+    "executive_summary": "User shows strong analytical thinking with room for technical skill development...",
+    "detailed_analysis": {...},
+    "node_history": ["node_1_initial_shortcuts", "node_2_check_response", ...],
+    "assessment_duration": 840,
+    "created_at": "2025-09-15T22:05:00"
+  }
+}
+
+ERROR CODES:
+- 404: Session ID not found or no summary available
+- 500: Database error or service unavailable
+
+================================================================================
+ENDPOINT 4: AGENT INFORMATION
+================================================================================
+
+URL: GET /ai-agents/langgraph/info
+DESCRIPTION: Get information about the LangGraph agent capabilities
+CONTENT-TYPE: application/json
+
+REQUEST: No body required
+
+EXAMPLE REQUEST:
+GET /ai-agents/langgraph/info
+
+RESPONSE FORMAT:
+{
+  "success": boolean,
+  "message": "string",
+  "data": {
+    "agent_type": "string",
+    "model": "string",
+    "nodes": ["string"],
+    "features": ["string"],
+    "max_questions": integer
+  }
+}
+
+EXAMPLE RESPONSE:
+{
+  "success": true,
+  "message": "LangGraph Quiz Agent Information",
+  "data": {
+    "agent_type": "LangGraph Adaptive Quiz Agent",
+    "model": "Qwen 3-32B (via Groq)",
+    "nodes": [
+      "node_1_initial_shortcuts",
+      "node_2_check_response",
+      "node_3a_correct_followup",
+      "node_3b_topic_catalog",
+      "node_4_select_new_topic",
+      "node_5_ask_question"
+    ],
+    "features": [
+      "Adaptive question difficulty",
+      "Topic-based progression",
+      "Performance tracking",
+      "AI-powered feedback",
+      "Database integration"
+    ],
+    "max_questions": 25
+  }
+}
+
+================================================================================
+WORKFLOW EXPLANATION
+================================================================================
+
+The LangGraph agent follows a 6-node workflow:
+
+1. NODE 1 (Initial Shortcuts): 
+   - Asks one "Shortcuts" question (easy difficulty)
+   - Records response in database
+
+2. NODE 2 (Check Response):
+   - Retrieves user's response from database
+   - Determines if answer was correct
+
+3. NODE 3A (Correct Followup):
+   - If answer was correct: asks 2 easy + 2 medium questions on same topic
+   - Updates database with responses
+
+4. NODE 3B (Topic Catalog):
+   - Gets all available topics
+   - Filters out already-asked topics
+
+5. NODE 4 (Select New Topic):
+   - Randomly selects from remaining topics
+   - Passes topic to Node 5
+
+6. NODE 5 (Ask Question):
+   - Asks easy question on selected topic
+   - If correct → go to Node 3A
+   - If incorrect → go to Node 3B
+
+The process continues until:
+- 25 questions have been asked (max limit)
+- No more topics/questions available
+
+7. NODE 6 (Generate Questions & Summary):
+   - Analyzes all user responses from the session
+   - Generates 5 new questions using AI based on user's strengths/weaknesses
+   - Saves new questions to database to improve questionnaire
+   - Creates comprehensive user summary with psychological profile
+   - Stores detailed analysis in user_summaries table
+
+================================================================================
+SECURITY FEATURES
+================================================================================
+
+✅ SECURE ASSESSMENT:
+- Correct answers are NEVER exposed in API responses
+- AI provides feedback without revealing solutions
+- Questions presented without answer keys
+- Maintains interview/assessment integrity
+
+✅ DATA PROTECTION:
+- All responses stored securely in database as JSON
+- Session-based tracking with unique identifiers
+- Performance analytics without exposing individual answers
+
+================================================================================
+INTEGRATION EXAMPLES
+================================================================================
+
+JAVASCRIPT/FETCH EXAMPLE:
+```javascript
+// Start assessment
+const response = await fetch('http://localhost:8000/ai-agents/langgraph/start-quiz', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    user_id: 'frontend_user_123'
+  })
+});
+
+const result = await response.json();
+
+if (result.success) {
+  console.log('Assessment completed!');
+  console.log('Session ID:', result.data.session_id);
+  console.log('Questions asked:', result.data.questions_asked);
+  console.log('Accuracy:', result.data.performance_summary.accuracy);
+  console.log('Topics covered:', result.data.topics_covered);
+} else {
+  console.error('Assessment failed:', result.message);
+}
+```
+
+PYTHON/REQUESTS EXAMPLE:
+```python
+import requests
+
+# Start assessment
+response = requests.post(
+    'http://localhost:8000/ai-agents/langgraph/start-quiz',
+    json={'user_id': 'python_user_456'}
+)
+
+if response.status_code == 200:
+    result = response.json()
+    if result['success']:
+        print(f"Assessment completed!")
+        print(f"Session ID: {result['data']['session_id']}")
+        print(f"Accuracy: {result['data']['performance_summary']['accuracy']:.2%}")
+        print(f"Topics: {result['data']['topics_covered']}")
+```
+
+CURL EXAMPLE:
+```bash
+# Start assessment
+curl -X POST http://localhost:8000/ai-agents/langgraph/start-quiz \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "curl_user_789"}'
+
+# Check health
+curl -X GET http://localhost:8000/ai-agents/langgraph/health
+
+# Get agent info
+curl -X GET http://localhost:8000/ai-agents/langgraph/info
+```
+
+================================================================================
+NOTES & LIMITATIONS
+================================================================================
+
+⚠️ IMPORTANT CONSIDERATIONS:
+
+1. SYNCHRONOUS EXECUTION:
+   - The quiz runs synchronously and may take 2-5 minutes to complete
+   - Consider implementing timeout handling in frontend (5-10 minutes)
+   - For production, consider making this asynchronous with WebSocket updates
+
+2. AI DEPENDENCY:
+   - Requires Groq API access for question presentation and feedback
+   - May fail if Groq service is unavailable
+   - Graceful degradation should be implemented
+
+3. DATABASE DEPENDENCY:
+   - Requires PostgreSQL database connection
+   - All responses are stored for analytics
+   - Database failures will cause assessment to fail
+
+4. QUESTION AVAILABILITY:
+   - Limited by questions available in database
+   - Some topics (like "VBA") may have no questions
+   - Agent handles this gracefully by selecting alternative topics
+
+5. PERFORMANCE:
+   - Each assessment generates 10-25 database queries
+   - AI API calls for each question presentation
+   - Consider caching for production use
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+1. "Failed to run quiz: Database connection failed"
+   - Check PostgreSQL database is running
+   - Verify connection string in configuration
+   - Ensure user_responses table exists
+
+2. "Failed to run quiz: Groq API error"
+   - Verify Groq API key is valid
+   - Check internet connection
+   - Monitor Groq API rate limits
+
+3. Assessment returns 0 questions
+   - Check if quiz questions exist in database
+   - Verify topics have questions with "easy" difficulty
+   - Run database health check
+
+4. Timeout errors
+   - Increase timeout settings in frontend
+   - Check server resources and performance
+   - Consider implementing progress callbacks
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

@@ -4,11 +4,36 @@ Chat-based quiz interface with topic performance tracking.
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 from .models import (
     QuizStartRequest, SubmitAnswerRequest, QuizResponse, 
     AnswerChoice, QuestionData, PerformanceSummary, QuizStatus
 )
 from .quiz_service import QuizService
+
+# Database connection configuration
+DATABASE_URL = "postgresql://neondb_owner:npg_gbCZGkeq8f7W@ep-small-forest-ad89jah2-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+def get_db_connection():
+    """Get database connection using the same method as insert_quiz_data.py"""
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+@contextmanager
+def get_db():
+    """Context manager for database connections."""
+    connection = None
+    try:
+        connection = get_db_connection()
+        yield connection
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        raise e
+    finally:
+        if connection:
+            connection.close()
 
 # Create router
 router = APIRouter(prefix="/ai-agents/round1", tags=["Round 1 Quiz"])
@@ -198,3 +223,81 @@ GET /performance
 ```
         """.strip()
     }
+
+@router.get("/topics")
+async def get_all_topics():
+    """Get all available topics from the database."""
+    try:
+        from .database_service import DatabaseService
+        topics = DatabaseService.get_all_topics()
+        
+        return {
+            "success": True,
+            "message": f"Found {len(topics)} topics",
+            "data": {
+                "topics": topics,
+                "total_count": len(topics)
+            }
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get topics: {str(e)}")
+
+@router.get("/topics/stats")
+async def get_topics_with_stats():
+    """Get all topics with question counts and statistics."""
+    try:
+        from .database_service import DatabaseService
+        
+        # Get all topics
+        topics = DatabaseService.get_all_topics()
+        
+        # Get database stats which includes topic distribution
+        stats = DatabaseService.get_database_stats()
+        
+        return {
+            "success": True,
+            "message": f"Found {len(topics)} topics with statistics",
+            "data": {
+                "topics": topics,
+                "total_topics": len(topics),
+                "database_stats": stats
+            }
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get topics with stats: {str(e)}")
+
+@router.get("/db/test")
+async def test_database_connection():
+    """Test database connection to verify it's working properly."""
+    try:
+        with get_db() as connection:
+            with connection.cursor() as cursor:
+                # Test basic connection
+                cursor.execute("SELECT 1 as test")
+                result = cursor.fetchone()
+                
+                # Get some basic stats
+                cursor.execute("SELECT COUNT(*) as total FROM quiz_questions")
+                total_questions = cursor.fetchone()['total']
+                
+                cursor.execute("SELECT COUNT(*) as easy FROM quiz_questions WHERE difficulty = 'easy'")
+                easy_questions = cursor.fetchone()['easy']
+                
+                return {
+                    "success": True,
+                    "message": "Database connection successful!",
+                    "test_result": result['test'],
+                    "database_stats": {
+                        "total_questions": total_questions,
+                        "easy_questions": easy_questions
+                    }
+                }
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Database connection failed: {str(e)}",
+            "error": str(e)
+        }

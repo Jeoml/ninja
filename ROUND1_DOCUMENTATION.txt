@@ -1,0 +1,573 @@
+================================================================================
+ROUND 1 QUIZ SYSTEM - COMPREHENSIVE DOCUMENTATION
+================================================================================
+
+OVERVIEW
+--------
+Round 1 is an adaptive quiz system that tracks user performance by topic. It provides
+a chat-based quiz interface with intelligent question selection and performance
+tracking. The system focuses on easy questions from different topics and maintains
+a catalog of solved vs unsolved topics.
+
+ARCHITECTURE
+------------
+The Round 1 system consists of 6 main components:
+
+1. __init__.py          - Package initialization and exports
+2. api.py              - FastAPI routes and endpoints
+3. catalog_service.py  - Performance tracking by topic
+4. database_service.py - Database operations for questions
+5. models.py           - Pydantic data models
+6. quiz_service.py     - Main orchestration service
+
+================================================================================
+FILE: __init__.py
+================================================================================
+
+PURPOSE:
+--------
+Package initialization file that exports the main services for Round 1.
+
+EXPORTS:
+--------
+- QuizService: Main quiz orchestration service
+- CatalogService: Performance tracking service  
+- DatabaseService: Database operations service
+
+USAGE:
+------
+from ai_agents.round1 import QuizService, CatalogService, DatabaseService
+
+================================================================================
+FILE: api.py
+================================================================================
+
+PURPOSE:
+--------
+FastAPI routes for Round 1 Quiz System providing a chat-based quiz interface
+with topic performance tracking.
+
+ENDPOINTS:
+----------
+
+1. POST /ai-agents/round1/start
+   - Starts a new quiz session
+   - Fetches 10-15 easy questions from database
+   - Initializes performance tracking
+   - Parameters: max_questions (optional, default 15)
+   - Returns: QuizResponse with session info
+
+2. GET /ai-agents/round1/question
+   - Gets the next question in the quiz
+   - Returns question with multiple choice options
+   - Intelligently selects questions to cover different topics
+   - Returns: QuizResponse with question data
+
+3. POST /ai-agents/round1/answer
+   - Submits answer for current question
+   - Validates answer choice (A, B, C, or D)
+   - Updates topic performance catalog
+   - Returns correct answer and explanation
+   - Parameters: {"answer": "A/B/C/D"}
+   - Returns: QuizResponse with answer result
+
+4. GET /ai-agents/round1/performance
+   - Gets current performance summary
+   - Shows solved vs unsolved topics
+   - Displays accuracy statistics
+   - Returns: QuizResponse with performance data
+
+5. GET /ai-agents/round1/status
+   - Gets current quiz session status
+   - Shows if quiz is active
+   - Displays progress information
+   - Returns: QuizResponse with status info
+
+6. POST /ai-agents/round1/end
+   - Ends current quiz session
+   - Provides final performance summary
+   - Shows topic catalog (solved/unsolved)
+   - Returns: QuizResponse with final results
+
+7. POST /ai-agents/round1/reset
+   - Resets the current quiz session
+   - Clears current question and progress
+   - Keeps performance history
+   - Returns: QuizResponse with reset confirmation
+
+CHAT ENDPOINTS:
+---------------
+
+8. GET /ai-agents/round1/chat/intro
+   - Returns friendly introduction to Round 1 quiz
+   - Provides available commands list
+
+9. GET /ai-agents/round1/chat/help
+   - Returns help with using the quiz system
+   - Shows chat flow and example usage
+
+ERROR HANDLING:
+---------------
+- All endpoints use try-catch blocks
+- Returns HTTPException with appropriate status codes
+- Provides detailed error messages
+
+================================================================================
+FILE: catalog_service.py
+================================================================================
+
+PURPOSE:
+--------
+Service for tracking user performance by topic in Round 1. Maintains a catalog
+of solved vs unsolved topics based on user answers.
+
+CLASSES:
+--------
+
+1. TopicStatus (Enum):
+   - SOLVED: Topic has been solved correctly
+   - UNSOLVED: Topic has not been solved
+   - MIXED: Topic has both correct and incorrect answers
+
+2. TopicPerformance (Dataclass):
+   - topic: Topic name
+   - correct_answers: Number of correct answers
+   - incorrect_answers: Number of incorrect answers
+   - questions_attempted: List of question IDs attempted
+   
+   Properties:
+   - total_attempts: Total number of attempts
+   - accuracy: Accuracy percentage
+   - status: Current topic status
+
+3. CatalogService:
+   Main service for managing user performance catalog
+
+METHODS:
+--------
+
+1. record_answer(question, user_answer, is_correct)
+   - Records user's answer for a question
+   - Updates topic performance statistics
+   - Tracks question IDs to avoid duplicates
+   - Stores session history
+
+2. get_topic_status(topic)
+   - Returns current status of a topic
+   - Returns TopicStatus enum value
+
+3. get_solved_topics()
+   - Returns list of solved topics
+
+4. get_unsolved_topics()
+   - Returns list of unsolved topics
+
+5. get_attempted_topics()
+   - Returns set of topics that have been attempted
+
+6. get_performance_summary()
+   - Returns overall performance summary including:
+     * Total questions answered
+     * Correct/incorrect counts
+     * Overall accuracy
+     * Topics attempted count
+     * Solved/unsolved topic lists
+     * Topic breakdown with individual statistics
+
+7. get_session_history()
+   - Returns history of questions asked in current session
+
+8. should_ask_from_topic(topic)
+   - Determines if more questions should be asked from a topic
+   - Prioritizes unattempted topics
+   - Deprioritizes solved topics with high confidence
+
+9. get_recommended_topics(available_topics)
+   - Returns prioritized list of topics to ask questions from
+   - Priority 1: Unattempted topics
+   - Priority 2: Topics that need more attempts
+
+10. reset_session()
+    - Resets current session while keeping performance data
+
+11. reset_all()
+    - Resets all data (performance and session)
+
+BUSINESS LOGIC:
+---------------
+- If a topic has both correct and incorrect answers, it's marked as SOLVED
+- Topics are prioritized based on attempt status and performance
+- Session history is maintained separately from performance data
+
+================================================================================
+FILE: database_service.py
+================================================================================
+
+PURPOSE:
+--------
+Service for database operations related to quiz questions. Handles fetching
+questions from the PostgreSQL database with intelligent selection strategies.
+
+CLASS: DatabaseService
+---------------------
+Static methods for database operations
+
+METHODS:
+--------
+
+1. _convert_answer_to_letter(answer_text, options)
+   - Converts full answer text to corresponding letter (A/B/C/D)
+   - Helper method for answer processing
+
+2. _create_question_object(row)
+   - Creates standardized question object from database row
+   - Formats options as dictionary with A/B/C/D keys
+   - Converts answer to letter format
+
+3. get_all_topics()
+   - Returns all unique topics from database
+   - Filters for easy difficulty questions only
+   - Returns sorted list of topic names
+
+4. get_questions_by_topic(topic, limit=5)
+   - Gets easy questions for a specific topic
+   - Uses random ordering for variety
+   - Returns list of question objects
+
+5. get_mixed_easy_questions(limit=15, exclude_topics=None)
+   - Gets mix of easy questions from different topics
+   - Can exclude specific topics
+   - Uses random ordering
+
+6. get_diverse_easy_questions(target_count=15)
+   - Gets diverse set of easy questions covering different topics
+   - Strategy: 1-2 questions per topic first, then fill remaining
+   - Ensures topic diversity
+   - Shuffles final result
+
+7. get_question_by_id(question_id)
+   - Gets specific question by ID
+   - Returns question object or None
+
+8. get_database_stats()
+   - Returns statistics about the questions database
+   - Includes:
+     * Total questions count
+     * Easy questions count
+     * Available topics count
+     * Topic distribution (questions per topic)
+
+DATABASE SCHEMA:
+----------------
+Assumes quiz_questions table with columns:
+- id: Question ID
+- question: Question text
+- option_a, option_b, option_c, option_d: Answer options
+- answer: Correct answer text
+- topic: Topic category
+- difficulty: Question difficulty level
+
+QUERY STRATEGIES:
+-----------------
+- All queries filter for difficulty = 'easy'
+- Uses RANDOM() for question selection variety
+- Implements topic diversity in get_diverse_easy_questions
+- Supports topic exclusion for advanced selection
+
+================================================================================
+FILE: models.py
+================================================================================
+
+PURPOSE:
+--------
+Pydantic models for Round 1 quiz API. Defines data structures for requests,
+responses, and internal data handling.
+
+ENUMS:
+------
+
+1. AnswerChoice (str, Enum):
+   - A, B, C, D: Valid answer choices
+
+MODELS:
+-------
+
+1. QuizStartRequest:
+   - max_questions: Optional[int] = 15
+   - Request to start a quiz session
+
+2. SubmitAnswerRequest:
+   - answer: AnswerChoice
+   - Request to submit an answer
+
+3. QuizResponse:
+   - success: bool
+   - message: str
+   - data: Optional[Dict[str, Any]] = None
+   - Standard response for quiz operations
+
+4. QuestionData:
+   - question_id: int
+   - question: str
+   - options: Dict[str, str] (A/B/C/D mapping)
+   - topic: str
+   - question_number: int
+   - total_questions: int
+   - progress: float
+   - Question data structure
+
+5. AnswerResult:
+   - is_correct: bool
+   - user_answer: str
+   - correct_answer: str
+   - correct_option: str
+   - topic: str
+   - explanation: str
+   - quiz_completed: bool
+   - questions_remaining: Optional[int] = None
+   - final_results: Optional[Dict] = None
+   - Result of submitting an answer
+
+6. PerformanceSummary:
+   - total_questions: int
+   - correct_answers: int
+   - incorrect_answers: int
+   - accuracy: float
+   - topics_attempted: int
+   - solved_topics: List[str]
+   - unsolved_topics: List[str]
+   - topic_breakdown: Dict[str, Dict]
+   - User performance summary
+
+7. QuizStatus:
+   - is_active: bool
+   - questions_asked: int
+   - max_questions: int
+   - has_current_question: bool
+   - current_question_id: Optional[int] = None
+   - Current quiz status
+
+8. DatabaseStats:
+   - total_questions: int
+   - easy_questions: int
+   - available_topics: int
+   - topic_distribution: List[Dict[str, Any]]
+   - Database statistics
+
+VALIDATION:
+-----------
+- All models use Pydantic for automatic validation
+- AnswerChoice enum ensures only valid answers (A/B/C/D)
+- Optional fields properly handled with defaults
+- Type hints provide clear data structure expectations
+
+================================================================================
+FILE: quiz_service.py
+================================================================================
+
+PURPOSE:
+--------
+Main quiz service for Round 1. Orchestrates the quiz flow, question selection,
+and user interaction. This is the core service that coordinates all other
+components.
+
+CLASS: QuizService
+-----------------
+Main service for Round 1 quiz functionality
+
+INITIALIZATION:
+---------------
+- db_service: DatabaseService instance
+- catalog_service: CatalogService instance
+- current_question: Currently active question
+- questions_pool: Pool of available questions
+- questions_asked_count: Number of questions asked
+- max_questions: Maximum questions for session
+- is_quiz_active: Quiz session status
+
+METHODS:
+--------
+
+1. start_quiz_session(max_questions=15)
+   - Starts a new quiz session
+   - Sets up question pool with diverse questions
+   - Initializes tracking variables
+   - Returns session info and database stats
+
+2. get_next_question()
+   - Gets the next question for the user
+   - Validates quiz is active
+   - Checks if quiz should end
+   - Intelligently selects next question
+   - Returns formatted question data
+
+3. submit_answer(user_answer)
+   - Submits answer for current question
+   - Validates answer format (A/B/C/D)
+   - Records answer in catalog service
+   - Generates explanation
+   - Checks if quiz should end
+   - Returns answer result
+
+4. get_current_performance()
+   - Gets current performance summary
+   - Returns catalog service performance data
+
+5. get_quiz_status()
+   - Gets current quiz status
+   - Returns session state information
+
+6. end_quiz_session()
+   - Manually ends current quiz session
+   - Returns final results and recommendations
+
+7. _select_next_question()
+   - PRIVATE: Intelligently selects next question
+   - Uses catalog service recommendations
+   - Prioritizes unattempted topics
+   - Avoids repeating current question
+   - Removes selected question from pool
+
+8. _end_quiz_session()
+   - PRIVATE: Ends quiz session and returns results
+   - Generates final performance summary
+   - Creates study recommendations
+   - Returns comprehensive results
+
+9. _get_answer_explanation(is_correct, topic)
+   - PRIVATE: Generates explanation for answer
+   - Provides feedback based on correctness and topic
+
+10. _generate_recommendations(results)
+    - PRIVATE: Generates study recommendations
+    - Analyzes performance data
+    - Provides next steps based on accuracy
+    - Identifies topics to review
+
+11. reset_session()
+    - Resets current session
+    - Clears all session data
+    - Keeps performance history
+
+INTELLIGENT QUESTION SELECTION:
+------------------------------
+The service implements smart question selection:
+
+1. Gets attempted topics from catalog
+2. Gets recommended topics (unattempted first)
+3. Filters questions by recommended topics
+4. Avoids repeating current question
+5. Selects randomly from preferred questions
+6. Removes selected question from pool
+
+QUIZ FLOW:
+----------
+1. Start session → Load diverse questions
+2. Get question → Intelligent selection
+3. Submit answer → Record performance
+4. Repeat until max questions reached
+5. End session → Generate recommendations
+
+ERROR HANDLING:
+---------------
+- Validates quiz state before operations
+- Checks answer format validity
+- Handles empty question pools
+- Provides meaningful error messages
+
+PERFORMANCE TRACKING:
+---------------------
+- Integrates with CatalogService for topic tracking
+- Maintains session history
+- Generates performance summaries
+- Creates study recommendations
+
+================================================================================
+SYSTEM INTEGRATION
+================================================================================
+
+DEPENDENCIES:
+-------------
+- FastAPI: Web framework for API endpoints
+- Pydantic: Data validation and serialization
+- PostgreSQL: Database for question storage
+- auth.database: Database connection utilities
+
+DATA FLOW:
+----------
+1. API receives request → QuizService processes
+2. QuizService → DatabaseService (question retrieval)
+3. QuizService → CatalogService (performance tracking)
+4. CatalogService → DatabaseService (topic analysis)
+5. Response formatted using Pydantic models
+
+CONFIGURATION:
+--------------
+- Default max questions: 15
+- Question pool size: max_questions * 2
+- Difficulty filter: 'easy' only
+- Answer validation: A/B/C/D only
+
+================================================================================
+USAGE EXAMPLES
+================================================================================
+
+STARTING A QUIZ:
+----------------
+POST /ai-agents/round1/start
+{
+  "max_questions": 12
+}
+
+GETTING A QUESTION:
+-------------------
+GET /ai-agents/round1/question
+
+SUBMITTING AN ANSWER:
+---------------------
+POST /ai-agents/round1/answer
+{
+  "answer": "B"
+}
+
+CHECKING PERFORMANCE:
+--------------------
+GET /ai-agents/round1/performance
+
+ENDING QUIZ:
+------------
+POST /ai-agents/round1/end
+
+================================================================================
+TESTING AND VALIDATION
+================================================================================
+
+The system includes comprehensive error handling and validation:
+
+1. Input validation through Pydantic models
+2. Database connection error handling
+3. Quiz state validation
+4. Answer format validation
+5. Empty data set handling
+
+All endpoints return consistent QuizResponse format with success/failure
+indicators and detailed error messages.
+
+================================================================================
+EXTENSIBILITY
+================================================================================
+
+The system is designed for easy extension:
+
+1. New question types can be added to database
+2. Additional difficulty levels supported
+3. Performance tracking can be enhanced
+4. New recommendation algorithms can be implemented
+5. Additional API endpoints can be added
+
+The modular design allows for independent testing and modification of
+individual components.
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
