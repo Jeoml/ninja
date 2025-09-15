@@ -68,7 +68,12 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for Railway
+    allow_origins=[
+        "*",  # Allow all origins for development
+        "https://ninja-frontend-production.up.railway.app",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,12 +94,32 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Railway health check endpoint."""
-    return {
-        "status": "healthy",
-        "service": "langgraph_service",
-        "environment": "railway",
-        "port": os.getenv("PORT", "8001")
-    }
+    try:
+        # Test backend connection
+        import requests
+        backend_url = os.getenv("BACKEND_SERVICE_URL", "https://ninja-production-6ed6.up.railway.app")
+        backend_health = "unknown"
+        
+        try:
+            response = requests.get(f"{backend_url}/health", timeout=5)
+            backend_health = "connected" if response.status_code == 200 else f"error_{response.status_code}"
+        except:
+            backend_health = "unreachable"
+        
+        return {
+            "status": "healthy",
+            "service": "langgraph_service",
+            "environment": "railway",
+            "port": os.getenv("PORT", "8001"),
+            "backend_status": backend_health,
+            "backend_url": backend_url
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "service": "langgraph_service",
+            "error": str(e)
+        }
 
 
 

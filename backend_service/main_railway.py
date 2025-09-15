@@ -17,7 +17,13 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for Railway
+    allow_origins=[
+        "*",  # Allow all origins for development
+        "https://ninja-frontend-production.up.railway.app",
+        "https://ninja-production-8034.up.railway.app",  # LangGraph service
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

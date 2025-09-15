@@ -49,11 +49,13 @@ DEBUG=false
 
 ### Environment Variables for LangGraph Service:
 ```
-BACKEND_SERVICE_URL=https://your-backend-service.railway.app
-GROQ_API_KEY=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
+BACKEND_SERVICE_URL=https://ninja-production-6ed6.up.railway.app
+GROQ_API_KEY=<copy_from_groq_api_key.txt>
 DATABASE_URL=postgresql://neondb_owner:npg_gbCZGkeq8f7W@ep-small-forest-ad89jah2-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 PORT=8001
 ```
+
+**Note**: The Groq API key is stored in `langgraph_service/groq_api_key.txt` - copy this value to the GROQ_API_KEY environment variable in Railway.
 
 ## 🚀 Deployment Steps
 
